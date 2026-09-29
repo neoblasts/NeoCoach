@@ -1,0 +1,215 @@
+/* LifeOS integration layer for the upstream BlockNote editor. */
+.lifeos-blocknote-shell {
+  width: 100%;
+  min-height: 560px;
+  color: hsl(var(--foreground));
+}
+
+/* KaTeX inherits foreground colour so it looks correct in dark mode */
+.lifeos-blocknote-shell .katex {
+  color: hsl(var(--foreground));
+}
+.lifeos-blocknote-shell .katex-display {
+  color: hsl(var(--foreground));
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+
+.lifeos-blocknote-shell .bn-container {
+  min-height: 560px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding-inline: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  --bn-colors-editor-text: hsl(var(--foreground));
+  --bn-colors-editor-background: transparent;
+  --bn-colors-menu-text: hsl(var(--foreground));
+  --bn-colors-menu-background: hsl(var(--popover));
+  --bn-colors-hovered-text: hsl(var(--foreground));
+  --bn-colors-hovered-background: hsl(var(--muted));
+  --bn-colors-selected-text: hsl(var(--primary-foreground));
+  --bn-colors-selected-background: hsl(var(--primary));
+  --bn-colors-disabled-text: hsl(var(--muted-foreground));
+  --bn-colors-disabled-background: hsl(var(--muted));
+}
+
+.lifeos-blocknote-shell .bn-editor {
+  min-height: 560px;
+  padding: 0.25rem 0.25rem !important;
+  padding-left: 0.25rem !important;
+  padding-right: 0.25rem !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  background: transparent;
+  outline: none;
+  color: hsl(var(--foreground));
+  caret-color: hsl(var(--foreground));
+}
+
+.lifeos-blocknote-shell [data-component="BlockNoteContainer"],
+.lifeos-blocknote-shell [data-editor-scheme],
+.lifeos-blocknote-shell .bn-editor,
+.lifeos-blocknote-shell .bn-container,
+.lifeos-blocknote-shell .bn-block-group {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+.lifeos-blocknote-shell .bn-block-content {
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.lifeos-blocknote-shell .bn-inline-content {
+  min-height: 1.75em;
+}
+
+.lifeos-blocknote-shell .bn-block-outer {
+  border-radius: 0.65rem;
+}
+
+.lifeos-blocknote-shell .bn-block-outer:hover {
+  background: transparent;
+}
+
+.lifeos-blocknote-shell .bn-side-menu {
+  opacity: 0.35;
+  transition: opacity 120ms ease;
+}
+
+.lifeos-blocknote-shell .bn-block-outer:hover .bn-side-menu {
+  opacity: 1;
+}
+
+.lifeos-blocknote-shell .bn-suggestion-menu,
+.lifeos-blocknote-shell .bn-formatting-toolbar,
+.lifeos-blocknote-shell .bn-link-toolbar {
+  z-index: 100;
+}
+
+.lifeos-equation {
+  margin: 0.4rem 0;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.9rem;
+  background: hsl(var(--muted) / 0.25);
+}
+
+/* Preview-only mode: no border chrome, just the rendered equation centered */
+.lifeos-equation-preview-only {
+  cursor: pointer;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  border-radius: 0.9rem;
+  transition: background 150ms ease;
+}
+.lifeos-equation-preview-only:hover {
+  background: hsl(var(--muted) / 0.45);
+}
+
+/* Rendered equation inside preview-only */
+.lifeos-equation-rendered {
+  overflow-x: auto;
+}
+.lifeos-equation-rendered .katex-display {
+  margin: 0;
+}
+
+.lifeos-equation-placeholder {
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* Editing mode retains the full chrome */
+.lifeos-equation-editing {
+  border: 1px solid hsl(var(--ring));
+}
+
+.lifeos-equation-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 0.45rem 0.7rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.lifeos-equation-toolbar span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.lifeos-equation-toolbar code {
+  border-radius: 0.4rem;
+  background: hsl(var(--background));
+  padding: 0.15rem 0.35rem;
+  font-size: 10px;
+}
+
+.lifeos-equation-input {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  border: 0;
+  border-bottom: 1px solid hsl(var(--border));
+  background: transparent;
+  padding: 0.7rem 0.8rem;
+  color: hsl(var(--foreground));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  outline: none;
+}
+
+.lifeos-equation-preview {
+  min-height: 3rem;
+  overflow-x: auto;
+  padding: 0.8rem;
+  text-align: center;
+}
+
+.lifeos-equation-preview .katex-display {
+  margin: 0;
+}
+
+.lifeos-equation-error {
+  border-top: 1px solid hsl(var(--border));
+  padding: 0.45rem 0.8rem;
+  color: hsl(var(--destructive));
+  font-size: 11px;
+}
+
+/* --- NEW: inline math styles --- */
+.lifeos-inline-math {
+  display: inline-block;
+  vertical-align: middle;
+  padding: 0 2px;
+}
+
+.lifeos-inline-math-display {
+  display: block;
+  margin: 0.5rem 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+.lifeos-inline-math .katex,
+.lifeos-inline-math-display .katex {
+  font-size: 1.05em;
+}

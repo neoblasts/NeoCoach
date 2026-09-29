@@ -1,0 +1,1 @@
+Get-Process | Where-Object { $_.Path -and $_.Path -notmatch "Windows\\System32" -and $_.Path -notmatch "Windows\\SysWOW64" } | Select-Object ProcessName, Id, Path | Sort-Object ProcessName | Out-String -Width 250

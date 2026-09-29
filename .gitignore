@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+
+# Build output — generated at deploy time, not source
+build/
+release/
+dist/
+
+# Vite cache
+.vite/
+
+# Environment secrets — NEVER commit
+.env
+.env.local
+.env.*.local
+
+# Firebase local emulator data
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Editor
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Electron builder temp
+app-update.yml
+*.blockmap
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Scratch scripts & temporary reports
+*.log
+*.tmp
+lifeos-ai-stats.json
+package.backup.json
+scratch_fix_hosts.cjs
+scripts-repair-focusguard.ps1
+Emergency-FocusGuard.cmd
+scripts/clean-hosts.ps1
+scripts/emergency-restore.cjs
+scripts/test-*.cjs
+
