@@ -1670,6 +1670,22 @@ ipcMain.handle(
   'ai:clear-cache',
   () => aiGateway.clearCache()
 );
+
+ipcMain.handle(
+  'ai:clear-log',
+  () => aiGateway.clearLog()
+);
+
+ipcMain.handle(
+  'system:show-notification',
+  (event, { title, body } = {}) => {
+    if (Notification.isSupported()) {
+      new Notification({ title: title || 'NeoCoach', body: body || '' }).show();
+      return { ok: true };
+    }
+    return { ok: false, reason: 'Notification not supported' };
+  }
+);
 // ============================================================
 // VOICE TRANSCRIBER IPC HANDLERS
 // ============================================================
@@ -1991,7 +2007,20 @@ function writeFocusGuardConfig(cfg){atomicWriteJson(focusGuardConfigPath(),cfg);
 // ---------- Async Windows helpers ----------
 function execFileAsync(file,args,options={}){
   return new Promise((resolve,reject)=>{
-    execFile(file,args,{encoding:'utf8',windowsHide:true,...options},(error,stdout,stderr)=>{
+    let settled = false;
+    const timeoutMs = options.timeout || 15000;
+    
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(`Hard timeout: ${file} took longer than ${timeoutMs}ms`));
+      try { child.kill('SIGKILL'); } catch {}
+    }, timeoutMs + 1000); // 1s grace period after soft timeout
+
+    const child = execFile(file,args,{encoding:'utf8',windowsHide:true,...options},(error,stdout,stderr)=>{
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       if(error){const e=new Error(String(stderr||stdout||error.message||error).trim()||`${file} failed`);e.code=error.code;e.killed=error.killed;return reject(e);}
       resolve({stdout:String(stdout||''),stderr:String(stderr||'')});
     });
@@ -2157,7 +2186,7 @@ function isLifeOSExecutable(exe){
 const VNEXT_PROTECTED_NAMES=new Set([
   'system','idle','registry','smss.exe','csrss.exe','wininit.exe','winlogon.exe','services.exe','lsass.exe','svchost.exe','dwm.exe','explorer.exe','sihost.exe','ctfmon.exe','fontdrvhost.exe','runtimebroker.exe','searchhost.exe','searchapp.exe','startmenuexperiencehost.exe','shellexperiencehost.exe','applicationframehost.exe','textinputhost.exe','securityhealthsystray.exe','securityhealthservice.exe','smartscreen.exe','taskhostw.exe','backgroundtaskhost.exe','dllhost.exe','spoolsv.exe','audiodg.exe','conhost.exe','openconsole.exe','windowsterminal.exe',
   'wudfhost.exe','msmpeng.exe','mpdefendercoreservice.exe','nissrv.exe','lsaiso.exe',
-  'powershell.exe','pwsh.exe','cmd.exe','node.exe','git.exe','bash.exe','zsh.exe','wsl.exe','wslhost.exe','wt.exe','python.exe','python3.exe','py.exe','npm.exe','pnpm.exe','yarn.exe','bun.exe','deno.exe','electron.exe','lifeos.exe',
+  'powershell.exe','pwsh.exe','cmd.exe','node.exe','git.exe','bash.exe','zsh.exe','wsl.exe','wslhost.exe','wt.exe','python.exe','python3.exe','py.exe','npm.exe','pnpm.exe','yarn.exe','bun.exe','deno.exe','electron.exe','lifeos.exe','neocoach.exe',
   // Essential Windows Productivity & Utility Tools (Word, Calculator, Snipping Tool, Notepad, Paint, Office)
   'winword.exe','excel.exe','powerpnt.exe','onenote.exe','onenotem.exe','outlook.exe','soffice.exe','soffice.bin',
   'calc.exe','calculator.exe','calculatorapp.exe',
@@ -2185,7 +2214,7 @@ function VNEXT_PROTECTED_ROOTS() {
 
 const BUILTIN_ALLOWED_APP_NAMES=new Set([
   ...VNEXT_PROTECTED_NAMES,
-  'lifeos.exe','electron.exe','node.exe','powershell.exe','pwsh.exe','cmd.exe','conhost.exe'
+  'lifeos.exe','neocoach.exe','electron.exe','node.exe','powershell.exe','pwsh.exe','cmd.exe','conhost.exe'
 ]);
 
 function appIsWisprFlow(info){
@@ -2216,8 +2245,8 @@ function appIsProtected(info){
   if(isLifeOSExecutable(exe))return true;
   if(VNEXT_PROTECTED_NAMES.has(name))return true;
   if(/\b(registry|memory compression|secure system|idle|system|msedgewebview2\.exe|aggregatorhost\.exe|backgroundtransferhost\.exe)\b/i.test(name))return true;
-  if(exe&&(/\b(nvidia|intel|realtek|lenovo|amd|dts|dolby|synaptics|driverstore|windows defender|programdata\/microsoft|antigravity|gemini|cursor|vscode|jetbrains|ollama|claude|lifeos|\.gemini|zen browser|zen-browser|mydockfinder|mydock|openai|chatgpt|codex)\b/i.test(exe)))return true;
-  if(name&&(/\b(nvsphelper64|defendersessionhelper|antigravity|gemini|cursor|code|node|powershell|pwsh|cmd|git|claude|ollama|collector_service|dsaupdateservice|dtsapo|esrv|ipf_helper|ipf_uf|jhi_service|presentmonservice|nvdisplay|msedgewebview2|zen|chrome|msedge|firefox|brave|opera|vivaldi|arc|mydockfinder|mydockfinder64|dock_64|dock_32|mydock|dock|winword|calc|calculator|calculatorapp|snippingtool|screenclippinghost|screensketch|snipandsketch|notepad|mspaint|chatgpt|codex|openai)\b/i.test(name)))return true;
+  if(exe&&(/\b(nvidia|intel|realtek|lenovo|amd|dts|dolby|synaptics|driverstore|windows defender|programdata\/microsoft|antigravity|gemini|cursor|vscode|jetbrains|ollama|claude|lifeos|neocoach|\.gemini|zen browser|zen-browser|mydockfinder|mydock|openai|chatgpt|codex)\b/i.test(exe)))return true;
+  if(name&&(/\b(nvsphelper64|defendersessionhelper|antigravity|gemini|cursor|code|node|powershell|pwsh|cmd|git|claude|ollama|collector_service|dsaupdateservice|dtsapo|esrv|ipf_helper|ipf_uf|jhi_service|presentmonservice|nvdisplay|msedgewebview2|zen|chrome|msedge|firefox|brave|opera|vivaldi|arc|mydockfinder|mydockfinder64|dock_64|dock_32|mydock|dock|winword|calc|calculator|calculatorapp|snippingtool|screenclippinghost|screensketch|snipandsketch|notepad|mspaint|chatgpt|codex|openai|neocoach)\b/i.test(name)))return true;
   for(const root of VNEXT_PROTECTED_ROOTS())if(exe&&root&&(exe===root||exe.startsWith(root+'/')||exe.startsWith(root+'\\')))return true;
   return false;
 }
@@ -2326,8 +2355,7 @@ function stopFocusGuardRuntimeHeartbeat(){
 
 function startAppEnforcement(){
   const cfg=readFocusGuardConfig();
-  const allowlistMode=cfg.allowlistApps===true||cfg.blockAllApps===true;
-  if(!focusGuardActive||cfg.blockApps===false||((cfg.blockedApps||[]).length===0&&!allowlistMode))return Promise.resolve(false);
+  if(!focusGuardActive||cfg.blockApps===false)return Promise.resolve(true);
   if(focusGuardEnforcerProcess&&!focusGuardEnforcerProcess.killed)return Promise.resolve(focusGuardEnforcerReady);
   const scriptPath=focusGuardEnforcerPath();
   if(!fs.existsSync(scriptPath))return Promise.reject(new Error(`Focus Guard enforcer is missing: ${scriptPath}`));
@@ -2378,13 +2406,17 @@ function startAppEnforcement(){
   });
 
   return new Promise((resolve,reject)=>{
-    const timeout=setTimeout(()=>{
-      if(focusGuardEnforcerReadyWaiter){focusGuardEnforcerReadyWaiter=null;reject(new Error('Focus Guard application enforcer did not become ready within 15 seconds.'));}
-    },15000);
-    focusGuardEnforcerReadyWaiter={
-      resolve:(ok)=>{clearTimeout(timeout);resolve(Boolean(ok));},
-      reject:(error)=>{clearTimeout(timeout);reject(error);}
+    const currentWaiter = {
+      resolve: (ok) => { clearTimeout(timeout); resolve(Boolean(ok)); },
+      reject: (error) => { clearTimeout(timeout); reject(error); }
     };
+    const timeout=setTimeout(()=>{
+      if(focusGuardEnforcerReadyWaiter === currentWaiter){
+        focusGuardEnforcerReadyWaiter=null;
+        currentWaiter.reject(new Error('Focus Guard application enforcer did not become ready within 15 seconds.'));
+      }
+    },15000);
+    focusGuardEnforcerReadyWaiter = currentWaiter;
   });
 }
 
@@ -2548,14 +2580,13 @@ async function activateFocusGuard(){
 
       focusGuardActive=true;
       focusGuardLifecycle='STARTING';
-      const allowlistMode=true;
+      const appExpected=Boolean(cfg.blockApps!==false);
 
       // 2. Start Application Enforcement Worker
-      if(cfg.blockApps!==false&&(cfg.blockedApps?.length||allowlistMode)){
+      if(appExpected){
         const ready=await startAppEnforcement();
         if(!ready)throw new Error('Application enforcement could not initialize.');
       }
-      const appExpected=Boolean(cfg.blockApps!==false&&(cfg.blockedApps?.length||allowlistMode));
       if(appExpected&&(!focusGuardEnforcerProcess||!focusGuardEnforcerReady))throw new Error('Application enforcement monitor failed to start.');
 
       focusGuardLifecycle='ACTIVE';
@@ -2890,7 +2921,7 @@ ipcMain.handle('focusguard:emergency-restore', async () => {
 async function getFocusGuardStatus(){
   const cfg=readFocusGuardConfig();
   const state=readFocusGuardSession();
-  const appExpected=Boolean(focusGuardActive&&cfg.blockApps!==false&&(cfg.blockedApps||[]).length);
+  const appExpected=Boolean(focusGuardActive&&cfg.blockApps!==false);
   // Use generous 30s heartbeat timeout — the enforcer only needs to respond
   // within a reasonable window, not sub-second. Tight timeouts were causing
   // false "guard died" signals that stopped the focus timer mid-session.
@@ -3228,9 +3259,25 @@ function createWindow() {
   mainWindow.on('close', (event) => {
     if (!appIsQuitting && (focusGuardActive || focusGuardLifecycle === 'ACTIVE' || focusGuardCleanupPromise)) {
       event.preventDefault();
-      mainWindow.minimize();
-      if (Notification.isSupported()) {
-        new Notification({ title: 'NeoCoach Focus Guard is active', body: 'NeoCoach stays running during Focus. Use Emergency Restore if something goes wrong.' }).show();
+      const choice = dialog.showMessageBoxSync(mainWindow, {
+        type: 'question',
+        buttons: ['Yes, End Session & Exit', 'No, Keep Studying'],
+        defaultId: 1,
+        cancelId: 1,
+        title: 'Focus Guard Session Active',
+        message: 'Do you want to close the study session?',
+        detail: 'Closing NeoCoach now will stop the Focus Guard timer and restore your normal web access and apps.',
+        noLink: true
+      });
+
+      if (choice === 0) {
+        appIsQuitting = true;
+        stopFocusGuard({ force: true, reason: 'user-closed-app' }).finally(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.destroy();
+          }
+          app.quit();
+        });
       }
     }
   });

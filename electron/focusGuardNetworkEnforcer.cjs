@@ -9,7 +9,20 @@ const RULE_PREFIX = 'LifeOS_FG_';
 
 function execFileAsync(file, args, options = {}) {
   return new Promise((resolve, reject) => {
-    execFile(file, args, { encoding: 'utf8', windowsHide: true, ...options }, (error, stdout, stderr) => {
+    let settled = false;
+    const timeoutMs = options.timeout || 15000;
+    
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(`Hard timeout: ${file} took longer than ${timeoutMs}ms`));
+      try { child.kill('SIGKILL'); } catch {}
+    }, timeoutMs + 1000);
+
+    const child = execFile(file, args, { encoding: 'utf8', windowsHide: true, ...options }, (error, stdout, stderr) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       if (error) {
         const msg = String(stderr || stdout || error.message || error).trim();
         const err = new Error(msg || `${file} failed`);

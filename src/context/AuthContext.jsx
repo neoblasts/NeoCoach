@@ -6,6 +6,8 @@ import {
   onAuthStateChanged,
   updateProfile,
   sendPasswordResetEmail,
+  confirmPasswordReset,
+  verifyPasswordResetCode,
 } from "firebase/auth";
 import { auth } from "@/libs/firebase";
 
@@ -30,10 +32,39 @@ export function AuthProvider({ children }) {
 
   const login  = (email, password) => signInWithEmailAndPassword(auth, email, password);
   const logout = ()               => signOut(auth);
-  const resetPassword = (email)   => sendPasswordResetEmail(auth, email);
+
+  const resetPassword = async (email) => {
+    const actionCodeSettings = {
+      url: "https://studypersonalcoach.firebaseapp.com/__/auth/action",
+      handleCodeInApp: true,
+    };
+    try {
+      return await sendPasswordResetEmail(auth, email, actionCodeSettings);
+    } catch (err) {
+      console.warn("sendPasswordResetEmail with actionCodeSettings failed, falling back to default:", err?.message || err);
+      return await sendPasswordResetEmail(auth, email);
+    }
+  };
+
+  const confirmResetPassword = (oobCode, newPassword) =>
+    confirmPasswordReset(auth, oobCode, newPassword);
+
+  const verifyResetCode = (oobCode) =>
+    verifyPasswordResetCode(auth, oobCode);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signup, login, logout, resetPassword }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        signup,
+        login,
+        logout,
+        resetPassword,
+        confirmResetPassword,
+        verifyResetCode,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

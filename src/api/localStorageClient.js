@@ -436,6 +436,45 @@ Ensure correct sign conventions and note that this relationship holds primarily 
 
 function offlineGenerateQuiz(args = {}) {
   const topic = args.topic || args.majorTopic || "General Study";
+  const instructions = String(args.customInstructions || args.promptText || '').toLowerCase();
+  const isObjectiveOnly = /\b(all|only|just|purely|\d+)?\s*(objective|mcq|mcqs|multiple[ -]?choice)\b/i.test(instructions) ||
+                          /\bobjective\s*(paper|quiz|questions?|set|test|hi)\b/i.test(instructions);
+
+  if (isObjectiveOnly) {
+    return {
+      questions: [
+        {
+          id: `quiz_${Date.now()}_0`,
+          type: "multiple_choice",
+          question: `Which core principle best defines ${topic}?`,
+          options: [
+            `Key foundational concept of ${topic}`,
+            `Incorrect alternative theory`,
+            `Unrelated physical phenomenon`,
+            `None of the above`
+          ],
+          answer: `Key foundational concept of ${topic}`,
+          explanation: `Comprehensive breakdown of ${topic} explaining why this option is correct.`,
+          difficulty: "medium"
+        },
+        {
+          id: `quiz_${Date.now()}_1`,
+          type: "multiple_choice",
+          question: `Which statement accurately describes ${topic}?`,
+          options: [
+            `Standard theoretical rule governing ${topic}`,
+            `Speculative unverified claim`,
+            `Outdated historical hypothesis`,
+            `Unrelated mathematical formulation`
+          ],
+          answer: `Standard theoretical rule governing ${topic}`,
+          explanation: `Detailed conceptual explanation for ${topic}.`,
+          difficulty: "medium"
+        }
+      ]
+    };
+  }
+
   return {
     questions: [
       {

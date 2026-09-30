@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import AISettings from "@/components/AISettings";
 import { localClient } from "@/api/localStorageClient";
-import { User, Download, Upload, Trash2, Brain, Moon, Sun, LogOut } from "lucide-react";
+import { User, Download, Upload, Trash2, Brain, Moon, Sun, LogOut, KeyRound } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -15,10 +15,11 @@ import { useNavigate } from "react-router-dom";
 export default function Profile() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, resetPassword } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [fullName, setFullName] = useState("");
+  const [resetSending, setResetSending] = useState(false);
 
   useEffect(() => {
     const p = localClient.profile.get();
@@ -31,6 +32,23 @@ export default function Profile() {
     const updated = localClient.profile.update({ full_name: fullName });
     setProfile(updated);
     toast({ title: "Profile updated" });
+  };
+
+  const handleSendReset = async () => {
+    const targetEmail = user?.email || profile?.email;
+    if (!targetEmail) {
+      toast({ title: "No email address found", variant: "destructive" });
+      return;
+    }
+    setResetSending(true);
+    try {
+      await resetPassword(targetEmail);
+      toast({ title: "Password Reset Email Sent!", description: `Check inbox for ${targetEmail}` });
+    } catch (err) {
+      toast({ title: "Failed to send reset email", description: err.message, variant: "destructive" });
+    } finally {
+      setResetSending(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -102,8 +120,11 @@ export default function Profile() {
               <Label className="mb-1.5 block">Email</Label>
               <p className="text-sm text-muted-foreground">{user?.email || profile?.email || "Not set"}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               <Button onClick={handleSaveName} size="sm" className="rounded-full">Save name</Button>
+              <Button onClick={handleSendReset} disabled={resetSending} variant="outline" size="sm" className="gap-1.5 rounded-full">
+                <KeyRound className="h-3.5 w-3.5" /> {resetSending ? "Sending link..." : "Reset Password"}
+              </Button>
               <Button onClick={handleLogout} variant="outline" size="sm" className="gap-1.5 rounded-full text-rose-500 hover:border-rose-500/40 hover:bg-rose-500/10">
                 <LogOut className="h-3.5 w-3.5" /> Sign out
               </Button>

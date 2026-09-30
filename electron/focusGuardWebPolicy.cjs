@@ -470,15 +470,20 @@ function flushDnsCache() {
 
 function generateHostsBlocklistContent() {
   const list = DEFAULT_DISTRACTING_DOMAINS.filter(d => !isStudyDomainAllowed(d));
-  const uniqueList = Array.from(new Set(list));
+  const customBlocked = Array.from(CUSTOM_DOMAIN_SET).filter(d => !isStudyDomainAllowed(d));
+  const uniqueList = Array.from(new Set([...list, ...customBlocked]));
   const lines = [
     HOSTS_HEADER_MARKER,
     '# Automatic website blocklist for FocusGuard session.'
   ];
   for (const domain of uniqueList) {
-    lines.push(`127.0.0.1 ${domain}`);
     const bare = domain.replace(/^www\./i, '');
+    lines.push(`0.0.0.0 ${bare}`);
+    lines.push(`0.0.0.0 www.${bare}`);
+    lines.push(`127.0.0.1 ${bare}`);
     lines.push(`127.0.0.1 www.${bare}`);
+    lines.push(`::1 ${bare}`);
+    lines.push(`::1 www.${bare}`);
   }
   lines.push(HOSTS_FOOTER_MARKER);
   return lines.join('\n');

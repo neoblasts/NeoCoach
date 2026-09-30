@@ -43,7 +43,20 @@ const BLOCK_PAGE_HTML = `<!DOCTYPE html>
 
 function execFileAsync(file, args, options = {}) {
   return new Promise((resolve, reject) => {
-    execFile(file, args, { encoding: 'utf8', windowsHide: true, ...options }, (error, stdout, stderr) => {
+    let settled = false;
+    const timeoutMs = options.timeout || 15000;
+    
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(`Hard timeout: ${file} took longer than ${timeoutMs}ms`));
+      try { child.kill('SIGKILL'); } catch {}
+    }, timeoutMs + 1000);
+
+    const child = execFile(file, args, { encoding: 'utf8', windowsHide: true, ...options }, (error, stdout, stderr) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       if (error) reject(error);
       else resolve({ stdout: String(stdout || ''), stderr: String(stderr || '') });
     });
@@ -330,7 +343,7 @@ async function enableSystemProxy(port = PROXY_PORT) {
     Set-ItemProperty -Path $reg -Name ProxyServer -Value '127.0.0.1:${port}' -ErrorAction SilentlyContinue
     Set-ItemProperty -Path $reg -Name ProxyOverride -Value 'localhost;127.0.0.1;<local>' -ErrorAction SilentlyContinue
 
-    # Also update all logged-in user profiles under HKEY_USERS
+    # Update all logged-in user profiles under HKEY_USERS
     Get-ChildItem Registry::HKEY_USERS -ErrorAction SilentlyContinue | ForEach-Object {
       $userKey = "$($_.Name)\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings"
       if (Test-Path "Registry::$userKey") {
@@ -340,7 +353,21 @@ async function enableSystemProxy(port = PROXY_PORT) {
       }
     }
 
-    # Notify WinINet of changes
+    # Disable DNS-over-HTTPS (DoH) in Google Chrome, MS Edge, and Brave via registry policies so incognito cannot bypass local proxy/hosts
+    $policies = @(
+      'HKLM:\\SOFTWARE\\Policies\\Google\\Chrome',
+      'HKCU:\\SOFTWARE\\Policies\\Google\\Chrome',
+      'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge',
+      'HKCU:\\SOFTWARE\\Policies\\Microsoft\\Edge',
+      'HKLM:\\SOFTWARE\\Policies\\BraveSoftware\\Brave',
+      'HKCU:\\SOFTWARE\\Policies\\BraveSoftware\\Brave'
+    )
+    foreach ($pol in $policies) {
+      if (-not (Test-Path $pol)) { New-Item -Path $pol -Force -ErrorAction SilentlyContinue | Out-Null }
+      Set-ItemProperty -Path $pol -Name DnsOverHttpsMode -Type String -Value 'off' -ErrorAction SilentlyContinue
+    }
+
+    # Notify WinINet of proxy changes
     try {
       Add-Type -MemberDefinition '[DllImport("wininet.dll")] public static extern bool InternetSetOption(int h, int o, int b, int l);' -Name 'WinInet' -Namespace 'Win32' -PassThru -ErrorAction SilentlyContinue | Out-Null
       [Win32.WinInet]::InternetSetOption(0, 39, 0, 0) | Out-Null
@@ -349,7 +376,7 @@ async function enableSystemProxy(port = PROXY_PORT) {
   `;
   try {
     await runPowerShell(psScript);
-    console.log('[FocusProxy] Enabled Windows System Proxy for universal browser filtering.');
+    console.log('[FocusProxy] Enabled Windows System Proxy & enforced Incognito DoH policy.');
     return { ok: true };
   } catch (err) {
     console.warn('[FocusProxy] Failed to enable system proxy:', err.message);

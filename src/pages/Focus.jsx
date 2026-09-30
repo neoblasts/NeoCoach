@@ -408,6 +408,13 @@ export default function Focus() {
                 </div>
               </div>
 
+              {settings.notificationsEnabled && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-2.5 flex items-center justify-between gap-2 text-xs">
+                  <span className="font-medium flex items-center gap-1.5"><Bell className="h-3.5 w-3.5 text-primary" /> Reminder Interval</span>
+                  <DurationStepper label="" value={settings.reminderIntervalMinutes || 10} onChange={(val) => updateSetting("reminderIntervalMinutes", val)} min={1} max={60} unit="min" />
+                </div>
+              )}
+
               <div className="rounded-xl border bg-card/60 p-3">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Input value={label} onChange={(event) => setLabel(event.target.value)} className="h-8 text-xs" placeholder="Session label (optional)" />

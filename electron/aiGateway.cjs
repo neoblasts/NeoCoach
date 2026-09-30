@@ -259,20 +259,43 @@ function generateQuizPrompt(args = {}) {
   const topic = clean(args.topic || args.majorTopic || 'the given material', 220);
   const count = Math.max(1, Math.min(Number(args.count) || 5, 50));
   const source = String(args.sourceText || '').slice(0, 6000).trim();
+  const instructions = String(args.customInstructions || args.promptText || '').trim();
+
+  const fullText = `${topic} ${instructions} ${source}`.toLowerCase();
+
+  // Detect explicit user commands for Objective / MCQ only
+  const isObjectiveOnly = /\b(all|only|just|purely|\d+)?\s*(objective|mcq|mcqs|multiple[ -]?choice)\b/i.test(fullText) ||
+                          /\bobjective\s*(paper|quiz|questions?|set|test|hi)\b/i.test(fullText) ||
+                          /\b(mcq|mcqs|objective)\s*only\b/i.test(fullText);
+
+  // Detect explicit user commands for Subjective only
+  const isSubjectiveOnly = /\b(all|only|just|purely|\d+)?\s*(subjective|short answer|written|essay)\b/i.test(fullText) ||
+                           /\bsubjective\s*(paper|quiz|questions?|set|test|hi)\b/i.test(fullText) ||
+                           /\bsubjective\s*only\b/i.test(fullText);
+
+  let questionTypeRule = '';
+  if (isObjectiveOnly && !isSubjectiveOnly) {
+    questionTypeRule = `1. CRITICAL STRICT REQUIREMENT: The user explicitly commanded to make an OBJECTIVE / MCQ paper. ALL ${count} questions MUST BE "multiple_choice" (MCQ). DO NOT include any subjective questions! Every question must have "type": "multiple_choice" and an array of 4 options.`;
+  } else if (isSubjectiveOnly && !isObjectiveOnly) {
+    questionTypeRule = `1. CRITICAL STRICT REQUIREMENT: The user explicitly commanded to make a SUBJECTIVE paper. ALL ${count} questions MUST BE "subjective" (written answer / short answer / conceptual derivation). DO NOT include any multiple_choice questions! Every question must have "type": "subjective" and "options": [].`;
+  } else {
+    questionTypeRule = `1. DEFAULT QUESTION TYPE BALANCE: The user did not specify a strict question type format, so by default give HIGHER PRIORITY to subjective questions: approx 65% to 75% SHOULD BE "subjective" (written answer / short answer / conceptual derivation) and approx 25% to 35% SHOULD BE "multiple_choice" (MCQ).`;
+  }
 
   return `You are NeoCoach Quiz Coach generating ${count} practice quiz questions for "${topic}".
+${instructions ? `User Custom Instructions:\n"${instructions}"\n` : ''}
 Source material:
 """
 ${source || '(use accurate general knowledge)'}
 """
 
 QUIZ REQUIREMENTS:
-1. Provide a balanced mix of questions: approx 60% to 70% SHOULD BE "subjective" (written answer / short answer / conceptual derivation) and approx 30% to 40% SHOULD BE "multiple_choice" (MCQ).
-2. For "subjective" questions:
+${questionTypeRule}
+2. For "subjective" questions (if present):
    - "type": "subjective"
    - "options": [] (empty array)
    - "answer": Comprehensive model solution / key points student needs to explain.
-3. For "multiple_choice" questions:
+3. For "multiple_choice" questions (if present):
    - "type": "multiple_choice"
    - "options": Array of exactly 4 plausible, distinct choices.
    - "answer": MUST match one of the choices in the "options" array.
@@ -1254,5 +1277,10 @@ Output ONLY valid JSON object with NO markdown wrapper.`;
     };
   }
   clearCache() { this.cache.clear(); return { ok: true }; }
+  clearLog() {
+    this.state.log = [];
+    this.save();
+    return { ok: true };
+  }
 }
 module.exports = { NeoCoachAIGateway, LifeOSAIGateway: NeoCoachAIGateway, classifyLocally, generateCardsPrompt, generateQuizPrompt, normalizeFlashcardJSON };

@@ -71,6 +71,23 @@ export default function FocusSetup({ settings, onSettingsChange, subjects, topic
         <ToggleRow icon={Bell} label="Notifications" checked={settings.notificationsEnabled} onChange={(v) => updateSetting("notificationsEnabled", v)} />
       </div>
 
+      {settings.notificationsEnabled && (
+        <div className="rounded-xl border bg-background/60 p-3 space-y-1.5">
+          <div className="flex items-center justify-between text-xs font-medium">
+            <span className="flex items-center gap-1.5"><Bell className="h-4 w-4 text-primary" /> Reminder Interval</span>
+            <span className="text-muted-foreground">Every {settings.reminderIntervalMinutes || 10} min</span>
+          </div>
+          <DurationStepper
+            label="Send reminders every"
+            value={settings.reminderIntervalMinutes || 10}
+            onChange={(v) => updateSetting("reminderIntervalMinutes", v)}
+            min={1}
+            max={60}
+            unit="min"
+          />
+        </div>
+      )}
+
       <div className="space-y-3 rounded-xl border bg-background/50 p-4">
         <div>
           <Label className="mb-1.5 block">Session label (optional)</Label>

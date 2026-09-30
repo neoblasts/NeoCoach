@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getMetrics: () => ipcRenderer.invoke('ai:get-metrics'),
     refreshModels: (provider) => ipcRenderer.invoke('ai:refresh-models', provider),
     clearCache: () => ipcRenderer.invoke('ai:clear-cache'),
+    clearLog: () => ipcRenderer.invoke('ai:clear-log'),
+    showNotification: (payload) => ipcRenderer.invoke('system:show-notification', payload),
     recordFeedback: (payload) => ipcRenderer.invoke('ai:record-feedback', payload),
     invoke: (payload) => ipcRenderer.invoke('ai:invoke', payload),
     stream: (payload, handlers = {}) => {

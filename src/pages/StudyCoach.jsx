@@ -900,27 +900,8 @@ export default function StudyCoach() {
           </div>
         </div>
 
-        {/* Controls: Context Picker & Voice Controls */}
+        {/* Controls: Context Picker */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Voice Mode Toggle */}
-          <button
-            onClick={() => {
-              const next = !isVoiceMode;
-              setIsVoiceMode(next);
-              if (!next && window.speechSynthesis) window.speechSynthesis.cancel();
-              toast({ title: next ? "Voice Speech Output Enabled" : "Voice Output Disabled" });
-            }}
-            className={cn(
-              "flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all",
-              isVoiceMode
-                ? "border-primary/50 bg-primary/20 text-primary ring-1 ring-primary/30"
-                : "border-border/60 bg-background/60 text-muted-foreground hover:bg-accent hover:text-foreground"
-            )}
-            title="Toggle Hands-Free Voice Response"
-          >
-            {isVoiceMode ? <Volume2 className="h-4 w-4 text-primary" /> : <VolumeX className="h-4 w-4" />}
-            <span className="hidden sm:inline">{isVoiceMode ? "Voice ON" : "Voice OFF"}</span>
-          </button>
 
           {/* Study Context Selectors */}
           <div className="flex items-center gap-1.5 rounded-xl border border-border bg-background/60 p-1 backdrop-blur-sm">
@@ -1072,7 +1053,7 @@ export default function StudyCoach() {
               />
 
               <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground px-1">
-                <span>Type or record voice message · AI Multimodal Active</span>
+                <span>Type study question or attach problem image · AI Multimodal Active</span>
                 <span className="hidden sm:inline font-mono text-[10px]">Groq & Gemini Multimodal Active</span>
               </div>
             </div>

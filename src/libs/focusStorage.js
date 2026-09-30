@@ -9,6 +9,7 @@ export const DEFAULT_FOCUS_SETTINGS = {
   autoStartNext: false,
   soundEnabled: true,
   notificationsEnabled: false,
+  reminderIntervalMinutes: 10,
 };
 
 export function getFocusSettings() {

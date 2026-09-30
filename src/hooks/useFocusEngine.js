@@ -67,6 +67,17 @@ export function useFocusEngine({ settings, onSessionEnd }) {
     });
   }, []);
 
+  const lastReminderMinuteRef = useRef(0);
+
+  const notifyPhaseStart = useCallback((ph, durationSeconds) => {
+    const mins = Math.max(1, Math.round(durationSeconds / 60));
+    if (ph === "focus") {
+      sendNotification("Focus Timer ON ⏱️", `Focus timer for ${mins} minute${mins !== 1 ? "s" : ""} is now active as commanded.`);
+    } else {
+      sendNotification("Break Timer Started ☕", `Break timer has started for ${mins} minute${mins !== 1 ? "s" : ""}. Take a rest!`);
+    }
+  }, []);
+
   const beginPhase = useCallback((ph, rdy, cyc, autoStart) => {
     const duration = phaseDuration(ph);
     phaseRef.current = ph;
@@ -74,6 +85,7 @@ export function useFocusEngine({ settings, onSessionEnd }) {
     cycleCountRef.current = cyc;
     totalRef.current = duration;
     remainingRef.current = duration;
+    lastReminderMinuteRef.current = 0;
     setPhase(ph);
     setRound(rdy);
     setCycleCount(cyc);
@@ -92,11 +104,12 @@ export function useFocusEngine({ settings, onSessionEnd }) {
       setRunning(true);
       endTimeRef.current = Date.now() + duration * 1000;
       if (settingsRef.current.soundEnabled) playStartSound();
+      notifyPhaseStart(ph, duration);
     } else {
       setRunning(false);
       pausedRemainingRef.current = duration;
     }
-  }, [phaseDuration]);
+  }, [phaseDuration, notifyPhaseStart]);
 
   const transition = useCallback(() => {
     const s = settingsRef.current;
@@ -121,13 +134,26 @@ export function useFocusEngine({ settings, onSessionEnd }) {
     }
   }, [beginPhase]);
 
-  // Timer tick
+  // Timer tick & Periodic Reminders
   useEffect(() => {
     if (!running) return;
     const id = setInterval(() => {
       const rem = Math.max(0, Math.round((endTimeRef.current - Date.now()) / 1000));
       remainingRef.current = rem;
       setRemaining(rem);
+
+      // Check periodic reminder interval
+      const s = settingsRef.current;
+      if (s.notificationsEnabled && phaseRef.current === "focus") {
+        const elapsedSec = totalRef.current - rem;
+        const elapsedMin = Math.floor(elapsedSec / 60);
+        const interval = Math.max(1, s.reminderIntervalMinutes || 10);
+        if (elapsedMin > 0 && elapsedMin % interval === 0 && lastReminderMinuteRef.current !== elapsedMin) {
+          lastReminderMinuteRef.current = elapsedMin;
+          sendNotification("Focus Reminder 🔔", `Focus session in progress (${elapsedMin} minute${elapsedMin !== 1 ? "s" : ""} elapsed). Keep going!`);
+        }
+      }
+
       if (rem <= 0) {
         setRunning(false);
         setCompleted(true);
@@ -148,10 +174,10 @@ export function useFocusEngine({ settings, onSessionEnd }) {
 
     if (meta?.phase === "focus") {
       if (s.soundEnabled) playEndSound();
-      if (s.notificationsEnabled) sendNotification("Focus complete!", "Great work. Time for a break.");
+      sendNotification("Focus Session Ended 🎉", "Focus timer finished! Time for a break.");
     } else {
       if (s.soundEnabled) playBreakSound();
-      if (s.notificationsEnabled) sendNotification("Break over", "Ready to focus again?");
+      sendNotification("Break Timer Ended 🔔", "Break time is over! Ready to focus again?");
     }
     transition();
   }, [completed, persistSession, transition]);
@@ -170,7 +196,6 @@ export function useFocusEngine({ settings, onSessionEnd }) {
   }, [persistSession]);
 
   const start = useCallback((config) => {
-    const s = settingsRef.current;
     const isCycle = config.preset === "pomodoro" || config.preset === "custom_pomodoro";
     flowRef.current = isCycle ? "cycle" : "single";
     setFlow(isCycle ? "cycle" : "single");
@@ -196,20 +221,18 @@ export function useFocusEngine({ settings, onSessionEnd }) {
 
     setActive(true);
     beginPhase(initialPhase, 1, 0, true);
-
-    if (s.notificationsEnabled) {
-      sendNotification(initialPhase === "focus" ? "Focus started" : "Break started", config.label || "Stay focused!");
-    }
   }, [beginPhase]);
 
   const pause = useCallback(() => {
     setRunning(false);
     pausedRemainingRef.current = remainingRef.current;
+    sendNotification("Focus Timer Paused ⏸️", "Focus timer is currently paused.");
   }, []);
 
   const resume = useCallback(() => {
     setRunning(true);
     endTimeRef.current = Date.now() + pausedRemainingRef.current * 1000;
+    sendNotification("Focus Timer ON ⏱️", "Focus timer has been resumed.");
   }, []);
 
   const stop = useCallback(() => {
@@ -222,6 +245,7 @@ export function useFocusEngine({ settings, onSessionEnd }) {
     setActive(false);
     metaRef.current = null;
     setSessionMeta(null);
+    sendNotification("Focus Timer OFF 🛑", "Focus timer has been turned off.");
   }, [persistSession]);
 
   const skip = useCallback(() => {

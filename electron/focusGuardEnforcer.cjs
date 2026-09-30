@@ -80,7 +80,7 @@ const PROTECTED_NAMES = new Set([
   'backgroundtaskhost.exe','dllhost.exe','spoolsv.exe','audiodg.exe','conhost.exe','openconsole.exe',
   'windowsterminal.exe','msmpeng.exe','mpdefendercoreservice.exe','nissrv.exe','lsaiso.exe','wudfhost.exe',
   // Shells, Runtimes & Dev Infrastructure (CRITICAL: Never kill process enumeration dependencies or dev server)
-  'powershell.exe','pwsh.exe','cmd.exe','node.exe','git.exe','bash.exe','zsh.exe','wsl.exe','wslhost.exe','wt.exe','python.exe','python3.exe','py.exe','npm.exe','pnpm.exe','yarn.exe','bun.exe','deno.exe','electron.exe','lifeos.exe',
+  'powershell.exe','pwsh.exe','cmd.exe','node.exe','git.exe','bash.exe','zsh.exe','wsl.exe','wslhost.exe','wt.exe','python.exe','python3.exe','py.exe','npm.exe','pnpm.exe','yarn.exe','bun.exe','deno.exe','electron.exe','lifeos.exe','neocoach.exe',
   // Essential Windows Productivity & Utility Tools (Word, Calculator, Snipping Tool, Notepad, Paint, Office)
   'winword.exe','excel.exe','powerpnt.exe','onenote.exe','onenotem.exe','outlook.exe','soffice.exe','soffice.bin',
   'calc.exe','calculator.exe','calculatorapp.exe',
@@ -131,9 +131,9 @@ function isProtected(info) {
 
   // Essential hardware & infrastructure drivers & AI agents & dev tool & browser path protection
   if (p) {
-    if (/\b(nvidia|intel|realtek|lenovo|amd|dts|dolby|synaptics|driverstore|windows defender|programdata\/microsoft|\.gemini|antigravity|cursor|vscode|jetbrains|ollama|claude|lifeos|zen browser|zen-browser|mydockfinder|mydock|openai|chatgpt|codex)\b/i.test(p)) return true;
+    if (/\b(nvidia|intel|realtek|lenovo|amd|dts|dolby|synaptics|driverstore|windows defender|programdata\/microsoft|\.gemini|antigravity|cursor|vscode|jetbrains|ollama|claude|lifeos|neocoach|zen browser|zen-browser|mydockfinder|mydock|openai|chatgpt|codex)\b/i.test(p)) return true;
   }
-  if (/\b(nvsphelper64|defendersessionhelper|antigravity|gemini|cursor|code|node|powershell|pwsh|cmd|git|claude|ollama|collector_service|dsaupdateservice|dtsapo|esrv|ipf_helper|ipf_uf|jhi_service|presentmonservice|nvdisplay|msedgewebview2|zen|chrome|msedge|firefox|brave|opera|vivaldi|arc|mydockfinder|mydockfinder64|dock_64|dock_32|mydock|dock|chatgpt|codex|openai)\b/i.test(n)) return true;
+  if (/\b(nvsphelper64|defendersessionhelper|antigravity|gemini|cursor|code|node|powershell|pwsh|cmd|git|claude|ollama|collector_service|dsaupdateservice|dtsapo|esrv|ipf_helper|ipf_uf|jhi_service|presentmonservice|nvdisplay|msedgewebview2|zen|chrome|msedge|firefox|brave|opera|vivaldi|arc|mydockfinder|mydockfinder64|dock_64|dock_32|mydock|dock|chatgpt|codex|openai|neocoach)\b/i.test(n)) return true;
 
   const win = norm(String(process.env.WINDIR || 'C:\\Windows'));
   const protectedRoots = [
@@ -196,7 +196,20 @@ function blocked(info) {
 
 function execFileAsync(file, args, options = {}) {
   return new Promise((resolve, reject) => {
-    execFile(file, args, { encoding: 'utf8', windowsHide: true, ...options }, (error, stdout, stderr) => {
+    let settled = false;
+    const timeoutMs = options.timeout || 10000;
+    
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(`Hard timeout: ${file} took longer than ${timeoutMs}ms`));
+      try { child.kill('SIGKILL'); } catch {}
+    }, timeoutMs + 1000); // 1s grace period after soft timeout
+
+    const child = execFile(file, args, { encoding: 'utf8', windowsHide: true, ...options }, (error, stdout, stderr) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       if (error) {
         const message = String(stderr || stdout || error.message || error).trim();
         reject(Object.assign(new Error(message || `${file} failed`), { code: error.code }));
@@ -373,6 +386,9 @@ function readConfig() {
       allowlistApps: value?.allowlistApps === true || value?.blockAllApps === true,
     };
   } catch (error) {
+    if (error.code === 'ENOENT') {
+      return { blockedApps: [], allowedApps: [], blockApps: true, allowlistApps: false };
+    }
     throw new Error(`Cannot read Focus Guard policy: ${error.message}`);
   }
 }
@@ -390,6 +406,12 @@ function parentHeartbeatFresh() {
 function restoreHostsEmergency() {
   if (process.platform !== 'win32') return;
   try {
+    // 1. Disable System Proxy to restore web connectivity instantly
+    try {
+      execFile('reg.exe', ['add', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings', '/v', 'ProxyEnable', '/t', 'REG_DWORD', '/d', '0', '/f'], { windowsHide: true }, () => {});
+    } catch {}
+
+    // 2. Restore Hosts file
     const backupFile = args.userData ? path.join(args.userData, 'focus-guard-hosts-backup.txt') : (RUNTIME_PATH ? path.join(path.dirname(RUNTIME_PATH), 'focus-guard-hosts-backup.txt') : null);
     const hostsPath = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32\\drivers\\etc\\hosts');
     if (backupFile && fs.existsSync(backupFile) && fs.existsSync(hostsPath)) {
@@ -405,6 +427,11 @@ function restoreHostsEmergency() {
         fs.writeFileSync(hostsPath, clean, 'utf8');
       }
     }
+
+    // 3. Clear any leftover FocusGuard firewall rules
+    try {
+      execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', "Get-NetFirewallRule -DisplayName 'LifeOS-FocusGuard*' | Remove-NetFirewallRule -ErrorAction SilentlyContinue"], { windowsHide: true }, () => {});
+    } catch {}
   } catch {}
 }
 
@@ -445,5 +472,10 @@ process.stdin.on('end', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 process.on('SIGINT', () => shutdown(0));
 
-try { start(); } catch (error) { emit('FATAL', { reason: 'startup-failed', error: error?.message || String(error) }); process.exitCode = 1; }
+try {
+  start();
+} catch (error) {
+  emit('FATAL', { reason: 'startup-failed', error: error?.message || String(error) });
+  setTimeout(() => process.exit(1), 30);
+}
 

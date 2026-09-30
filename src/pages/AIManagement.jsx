@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/libs/utils";
 import { getAISettings, PROVIDERS } from "@/libs/aiProviders";
 import { aiGateway } from "@/libs/aiGatewayClient";
+import { useToast } from "@/components/ui/use-toast";
+import { sendNotification } from "@/libs/focusNotifications";
 import {
   Activity,
   BarChart3,
@@ -17,6 +19,7 @@ import {
   Gauge,
   RefreshCw,
   Server,
+  Trash2,
   TriangleAlert,
   Zap,
 } from "lucide-react";
@@ -132,9 +135,11 @@ function ProviderCard({ provider, data, configuredModel }) {
 }
 
 export default function AIManagement() {
+  const { toast } = useToast();
   const [metrics, setMetrics] = useState(null);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [clearingLog, setClearingLog] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -149,6 +154,29 @@ export default function AIManagement() {
       setLoading(false);
     }
   }, []);
+
+  const handleClearLog = async () => {
+    setClearingLog(true);
+    try {
+      if (window.electronAPI?.ai?.clearLog) {
+        await window.electronAPI.ai.clearLog();
+      }
+      toast({
+        title: "API Activity Log Cleared",
+        description: "All persistent local API provider activity logs have been cleared successfully.",
+      });
+      sendNotification("API Activity Log Cleared", "All local API provider activity logs have been successfully cleared.");
+      await refresh();
+    } catch (error) {
+      toast({
+        title: "Clear Log Failed",
+        description: error?.message || "Could not clear activity log.",
+        variant: "destructive",
+      });
+    } finally {
+      setClearingLog(false);
+    }
+  };
 
   useEffect(() => {
     refresh();
@@ -240,12 +268,26 @@ export default function AIManagement() {
       ))}
 
       <section className="rounded-2xl border bg-card p-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-semibold text-foreground">API Activity Log</h2>
             <p className="mt-1 text-xs text-muted-foreground">Persistent local provider activity. Streaming requests are recorded when they finish or fail.</p>
           </div>
-          <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">{fmt(metrics?.recentLog?.length)} entries</span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">{fmt(metrics?.recentLog?.length)} entries</span>
+            {(metrics?.recentLog?.length || 0) > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClearLog}
+                disabled={clearingLog}
+                className="gap-1.5 rounded-xl text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
+              >
+                <Trash2 className={cn("h-3.5 w-3.5", clearingLog && "animate-spin")} />
+                {clearingLog ? "Clearing..." : "Clear Log"}
+              </Button>
+            )}
+          </div>
         </div>
         <div className="mt-4 max-h-[420px] overflow-auto rounded-xl border">
           {(metrics?.recentLog || []).length === 0 ? (
